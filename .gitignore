@@ -1,0 +1,4 @@
+.DS_Store
+codes/glove
+*.zip
+.ipynb_checkpoints
