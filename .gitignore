@@ -2,3 +2,6 @@
 codes/glove
 *.zip
 .ipynb_checkpoints
+__MACOSX
+datasets
+__pycache__
