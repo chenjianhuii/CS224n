@@ -5,3 +5,4 @@ codes/glove
 __MACOSX
 datasets
 __pycache__
+assignments/*/data
