@@ -6,3 +6,5 @@ __MACOSX
 datasets
 __pycache__
 assignments/*/data
+*.txt
+*.tsv
