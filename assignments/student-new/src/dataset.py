@@ -25,8 +25,8 @@ class NameDataset(Dataset):
     def __init__(self, pretraining_dataset, data):
         self.MASK_CHAR = u"\u2047" # the doublequestionmark character, for mask
         self.PAD_CHAR = u"\u25A1" # the empty square character, for pad
-        self.itos = pretraining_dataset.itos 
-        self.stoi = pretraining_dataset.stoi 
+        self.itos = pretraining_dataset.itos
+        self.stoi = pretraining_dataset.stoi
         self.block_size = pretraining_dataset.block_size
         self.data = list(data.encode('utf-8').decode('ascii', errors='ignore').split('\n'))
 
@@ -39,7 +39,7 @@ class NameDataset(Dataset):
         x = inp + self.MASK_CHAR + oup + self.MASK_CHAR
         x = x + self.PAD_CHAR*(self.block_size - len(x))
         y = self.PAD_CHAR*(len(inp)-1) + x[len(inp):]
-        
+
         x = x[:-1]
         x = torch.tensor([self.stoi[c] for c in x], dtype=torch.long)
         y = torch.tensor([self.stoi[c] for c in y], dtype=torch.long)
@@ -64,7 +64,7 @@ Your vocabulary is to be accessible via two dictionaries:
   self.itos: a dictionary from indices of type int to characters in the
       vocabulary
 
-Your vocabulary must have the following form: 
+Your vocabulary must have the following form:
 
   Identifier 0 must be assigned to the unicode element u"\u25A1".
       This is the empty_square_character.
@@ -94,7 +94,7 @@ make sure that the length is picked _randomly_ (every possible length from 4
 to int(self.block_size*7/8) has a chance of being picked) for full credit.
 
 2. Now, break the (truncated) document into three substrings:
-    
+
     [prefix] [masked_content] [suffix]
 
   In other words, choose three strings prefix, masked_content and suffix
@@ -109,7 +109,7 @@ less than 1/4 the length of the truncated document) for full credit.
 3. Rearrange these substrings into the following form:
 
     [prefix] MASK_CHAR [suffix] MASK_CHAR [masked_content] [pads]
-  
+
   This resulting string, denoted masked_string, serves as the output example.
   Here MASK_CHAR is the masking character defined in Vocabulary Specification,
     and [pads] is a string of repeated PAD_CHAR characters chosen so that the
@@ -147,7 +147,7 @@ class CharCorruptionDataset(Dataset):
         self.PAD_CHAR = u"\u25A1" # the empty square character, for pad
 
         chars = list(sorted(list(set(data))))
-        assert self.MASK_CHAR not in chars 
+        assert self.MASK_CHAR not in chars
         assert self.PAD_CHAR not in chars
         chars.insert(0, self.MASK_CHAR)
         chars.insert(0, self.PAD_CHAR)
@@ -168,7 +168,23 @@ class CharCorruptionDataset(Dataset):
 
     def __getitem__(self, idx):
         # TODO [part e]: see spec above
-        raise NotImplementedError
+        document = self.data[idx]
+        length = int(random.uniform(4, int(self.block_size*7/8)))
+        truncated = document[:length]
+        mask_len = int(random.uniform(1, int(length/2)))
+        start = int(random.uniform(1, length-mask_len))
+        prefix = truncated[:start]
+        masked = truncated[start:start+mask_len]
+        suffix = truncated[start+mask_len:]
+        result = prefix + self.MASK_CHAR + suffix + self.MASK_CHAR + masked + self.MASK_CHAR
+        result += self.PAD_CHAR * (self.block_size - len(result))
+        result = [self.stoi[c] for c in result ]
+        x = torch.tensor(result[:-1], dtype=torch.long)
+        y = torch.tensor(result[1:], dtype=torch.long)
+        #print(x.shape, y.shape)
+        return x, y
+
+
 
 """
 Code under here is strictly for your debugging purposes; feel free to modify
@@ -183,7 +199,7 @@ if __name__ == '__main__':
 
     if args.dataset_type == 'namedata':
         # Even if it hasn't been implemented, we use it to define the vocab
-        corruption_dataset = CharCorruptionDataset(open('wiki.txt').read(), 128) 
+        corruption_dataset = CharCorruptionDataset(open('wiki.txt').read(), 128)
         # Make the name dataset
         name_dataset = NameDataset(corruption_dataset,
             open('birth_places_train.tsv').read())
@@ -193,7 +209,7 @@ if __name__ == '__main__':
             print('y:', ''.join([name_dataset.itos[int(c)] for c in y]))
         pass
     elif args.dataset_type == 'charcorruption':
-        corruption_dataset = CharCorruptionDataset(open('wiki.txt').read(), 128) 
+        corruption_dataset = CharCorruptionDataset(open('wiki.txt').read(), 128)
         for _, example in zip(range(4), corruption_dataset):
             x, y = example
             print('x:', ''.join([corruption_dataset.itos[int(c)] for c in x]))

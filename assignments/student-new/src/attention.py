@@ -62,8 +62,8 @@ class SynthesizerAttention(nn.Module):
         assert config.n_embd % config.n_head == 0
         # NEW learnable weights
         self.w1 = nn.Linear(config.n_embd, config.n_embd)
-        self.w2 = nn.Parameter(torch.zeros(config.n_embd // config.n_head,
-            config.block_size-1))
+        self.w2 = nn.Parameter(torch.zeros(config.n_embd, config.block_size-1))
+        self.b1 = nn.Parameter(torch.zeros(config.n_embd))
         self.b2 = nn.Parameter(torch.zeros(config.block_size-1))
         # value projection
         self.value = nn.Linear(config.n_embd, config.n_embd)
@@ -90,4 +90,17 @@ class SynthesizerAttention(nn.Module):
         #   - Consider especially the parameters self.w1, self.w2 and self.b2.
         #       How do these map to the matrices in the handout?
 
-        raise NotImplementedError
+        B, T, C = x.size()
+        v = self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        att = (self.w1(x) + self.b1).relu()
+        att = att.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        att = att @ self.w2.view(self.n_head, -1, self.block_size-1) + self.b2
+        att = att.masked_fill(self.mask[:,:,:T,:T] == 0, -1e10) # todo: just use float('-inf') instead?
+        att = F.softmax(att, dim=-1)
+        att = self.attn_drop(att)
+        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
+
+        # output projection
+        y = self.resid_drop(self.proj(y))
+        return y
